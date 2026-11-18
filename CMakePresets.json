@@ -1,0 +1,37 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "tests",
+      "displayName": "Unit tests on this machine (no Windows needed)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/tests",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "mingw",
+      "displayName": "dinput8.dll, cross-compiled with MinGW-w64",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/mingw",
+      "toolchainFile": "${sourceDir}/cmake/mingw-w64-x86_64.cmake",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+    },
+    {
+      "name": "msvc",
+      "displayName": "dinput8.dll and tests, Visual Studio 2022 on Windows",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/msvc"
+    }
+  ],
+  "buildPresets": [
+    { "name": "tests", "configurePreset": "tests" },
+    { "name": "mingw", "configurePreset": "mingw" },
+    { "name": "package", "configurePreset": "mingw", "targets": ["package_zip"] },
+    { "name": "msvc", "configurePreset": "msvc", "configuration": "Release" }
+  ],
+  "testPresets": [
+    { "name": "tests", "configurePreset": "tests", "output": { "outputOnFailure": true } }
+  ]
+}
