@@ -11,6 +11,7 @@
 #include "input.h"
 #include "keys.h"
 #include "log.h"
+#include "shared.h"
 
 typedef HRESULT(WINAPI* DirectInput8CreateFn)(HINSTANCE, DWORD, const void*, void**, void*);
 static DirectInput8CreateFn g_realCreate = nullptr;
@@ -76,10 +77,10 @@ static DWORD WINAPI init_thread(void*) {
         logf("%s", config.warnings.substr(start, end - start).c_str());
         start = end + 1;
     }
-    logf("settings: Enabled=%d StepCells=%d LargeStepCells=%d StayLockedAfterPlace=%d FlipLeftRight=%d SnapOnLock=%d "
-         "Trace=%d KeyRepeat=%d/%d ms",
-         config.enabled, config.stepCells, config.largeStepCells, config.stayLockedAfterPlace, config.flipLeftRight,
-         config.snapOnLock, config.trace, config.repeatDelayMs, config.repeatRateMs);
+    logf("settings: Enabled=%d StepCells=%d LargeStepCells=%d FlipLeftRight=%d SnapOnLock=%d "
+         "Trace=%d KeyRepeat=%d/%d ms CursorModes=0x%x",
+         config.enabled, config.stepCells, config.largeStepCells, config.flipLeftRight,
+         config.snapOnLock, config.trace, config.repeatDelayMs, config.repeatRateMs, config.cursorModes);
     log_keys(config);
 
     if (!config.enabled) {
@@ -95,6 +96,7 @@ static DWORD WINAPI init_thread(void*) {
     logf("waiting %d ms for game start-up before scanning", config.startDelayMs);
     Sleep((DWORD)config.startDelayMs);
 
+    g_shared.lockModes.store(config.cursorModes);
     if (hook_install()) input_start(config);
     return 0;
 }

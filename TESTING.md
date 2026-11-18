@@ -1,16 +1,18 @@
 # Testing BlockNudge
 
-The mod cannot be tested where it is built, so every build is checked by hand in the game.
+Nothing can test the hook without the game, so every build is checked by hand in the game.
 This is the routine. It takes about five minutes.
 
 ## 1. Install
 
-On the Windows machine, with the game closed:
+From a checkout, with the game closed:
 
 ```
-git pull
-install.cmd
+install.cmd -ResetIni
 ```
+
+Then set `Trace=1` in the game folder's `BlockNudge.ini`, so the log records what the game's
+cursor is doing each second.
 
 `install.cmd` finds Enshrouded through Steam and copies `dist\dinput8.dll` next to
 `enshrouded.exe`, plus `BlockNudge.ini` if the game folder has none. It prints the game
@@ -36,14 +38,15 @@ Do these in order. Each step proves one milestone, so stop at the first one that
    wall for a few seconds, so the log collects a few `trace` lines.
 3. **Press `H`**, then move the camera around. The ghost should stay where it was. Watch
    for whether it jumped at the moment you pressed `H`, and whether it stays lit.
-4. **Tap each nudge key once**: the four arrow keys, `Page Up`, `Page Down`. The ghost should
+4. **Tap each nudge key once**: the four arrow keys, `Home`, `End`. The ghost should
    move one cell (0.5 m) each time. Check that left and right go the way you expect, then
    turn the camera a quarter turn and check again.
 5. **Hold `Left Shift` and tap an arrow**: the ghost should move four cells (2 m).
 6. **Hold an arrow key**: the ghost should walk after a short pause.
-7. **Left click** to place. The block should appear where the ghost was, at normal cost.
-   Nudge and click again: the lock should still be held.
-8. **Press `H`** to unlock. The ghost should follow your aim again.
+7. **Left click** to place. The block should appear where the ghost was, at normal cost,
+   and the ghost should follow your aim again.
+8. **Lock again, then press `H`** to unlock without placing. The ghost should follow your
+   aim again.
 9. **Put the hammer away** while locked (lock first, then switch tool). Take it out again:
    the lock should be gone.
 
@@ -70,7 +73,7 @@ Edit `BlockNudge.ini` in the game folder and restart the game.
 
 ## Later checks
 
-Once the session above passes, these are the open questions from the brief. Each answer goes
+Once the session above passes, these are the open questions. Each answer goes
 into the checklist in `README.md`.
 
 - **Reach:** lock, walk away, click. At what distance does placing stop working, and does

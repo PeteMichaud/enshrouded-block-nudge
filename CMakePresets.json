@@ -29,7 +29,8 @@
     { "name": "tests", "configurePreset": "tests" },
     { "name": "mingw", "configurePreset": "mingw" },
     { "name": "package", "configurePreset": "mingw", "targets": ["package_zip"] },
-    { "name": "msvc", "configurePreset": "msvc", "configuration": "Release" }
+    { "name": "msvc", "configurePreset": "msvc", "configuration": "Release" },
+    { "name": "package-msvc", "configurePreset": "msvc", "configuration": "Release", "targets": ["package_zip"] }
   ],
   "testPresets": [
     { "name": "tests", "configurePreset": "tests", "output": { "outputOnFailure": true } }

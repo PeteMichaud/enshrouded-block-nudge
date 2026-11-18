@@ -4,6 +4,10 @@
 
 #include <cstring>
 
+#if defined(_MSC_VER)
+#include <intrin.h>
+#endif
+
 #include <MinHook.h>
 
 #include "log.h"
@@ -19,45 +23,68 @@ static const char* kCursorXfSig =
 static const size_t kHookBytes = 5;  // what another mod's jump over the function start replaces
 
 static const size_t kOutRot = 0x18, kOutValid = 0x28;  // out: int64 pos[3], float rot[4], bool valid
-static const size_t kQueryMode = 3;                    // query[3] == 4: a building shape is in hand
-static const uint8_t kModeBlueprint = 4;
+static const size_t kQueryMode = 3;                    // query[3]: which cursor this call is for
 static const size_t kSysCamPos = 0x640, kSysCamRot = 0x658;
 
 typedef uint8_t* (*CursorXfFn)(uint8_t* out, uint8_t* sys, uint8_t* query, uint8_t* ray);
 static CursorXfFn g_original = nullptr;
+static uint8_t* g_image = nullptr;
 
-// Runs on game threads, about twice a frame. No waiting, no I/O.
+#if defined(_MSC_VER)
+#define CALLER_ADDRESS() ((uint8_t*)_ReturnAddress())
+#else
+#define CALLER_ADDRESS() ((uint8_t*)__builtin_return_address(0))
+#endif
+
+// Runs on game threads, once or twice a frame. No waiting, no I/O.
 static uint8_t* cursor_hook(uint8_t* out, uint8_t* sys, uint8_t* query, uint8_t* ray) {
+    uint8_t* const caller = CALLER_ADDRESS();
     uint8_t* result = g_original(out, sys, query, ray);
     g_shared.calls.fetch_add(1, std::memory_order_relaxed);
     if (!out || !sys || !query) return result;
     const uint8_t mode = query[kQueryMode];
     g_shared.mode.store(mode, std::memory_order_relaxed);
-    if (mode != kModeBlueprint) return result;
+    if (mode >= kModes) return result;
+    g_shared.modeCalls[mode].fetch_add(1, std::memory_order_relaxed);
+    const bool lockable = (g_shared.lockModes.load(std::memory_order_relaxed) >> mode) & 1;
 
-    nudge::Lock lock;
-    const bool locked = g_shared.lock.read(lock) && lock.locked;
+    HookLock lock;
+    const bool locked = lockable && g_shared.lock.read(lock) && lock.lock.locked;
     const uint64_t now = GetTickCount64();
 
     g_shared.seen.try_update([&](Seen& s) {
-        memcpy(s.raw.pos, out, sizeof(s.raw.pos));
-        memcpy(s.raw.rot, out + kOutRot, sizeof(s.raw.rot));
-        s.rawValid = out[kOutValid] != 0;
-        memcpy(s.cam, sys + kSysCamPos, sizeof(s.cam));
+        ModeSeen& m = s.modes[mode];
+        memcpy(m.raw.pos, out, sizeof(m.raw.pos));
+        memcpy(m.raw.rot, out + kOutRot, sizeof(m.raw.rot));
+        m.rawValid = out[kOutValid] != 0;
+        memcpy(m.cam, sys + kSysCamPos, sizeof(m.cam));
+        memcpy(m.query, query, sizeof(m.query));
+        m.rayType = ray ? ray[0] : 255;
+        m.callerRva = (uint32_t)(caller - g_image);
+        m.sys = (uintptr_t)sys;
+        m.seenMs = now;
+        if (!locked && m.rawValid) {
+            m.lastValid = m.raw;
+            m.validMs = now;
+            m.haveValid = true;
+        }
+        if (!lockable) return;
         memcpy(s.cur.camRot, sys + kSysCamRot, sizeof(s.cur.camRot));
         s.cur.seenMs = now;
-        if (!locked && s.rawValid) {
-            s.cur.lastValid = s.raw;
+        if (!locked && m.rawValid) {
+            s.cur.lastValid = m.raw;
             s.cur.validMs = now;
             s.cur.haveValid = true;
         }
     });
 
-    if (locked) {
+    if (locked && lock.has[mode]) {
+        nudge::Lock held = lock.lock;
+        held.pose = lock.pose[mode];
         int64_t pos[3];
         float rot[4];
         uint8_t valid;
-        nudge::apply(lock, pos, rot, &valid);
+        nudge::apply(held, pos, rot, &valid);
         memcpy(out, pos, sizeof(pos));
         memcpy(out + kOutRot, rot, sizeof(rot));
         out[kOutValid] = valid;
@@ -131,6 +158,7 @@ static uint8_t* find_cursor_xf(uint8_t* image, const Text& text) {
 
 bool hook_install() {
     uint8_t* image = (uint8_t*)GetModuleHandleW(nullptr);
+    g_image = image;
     const Text text = find_text(image);
     if (!text.base || !text.size) {
         logf("no .text section found in the game image; game left vanilla");

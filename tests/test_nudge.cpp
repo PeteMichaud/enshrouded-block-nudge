@@ -265,9 +265,9 @@ TEST(published_value_round_trips) {
 
 TEST(trybox_updates_and_reads) {
     TryBox<Seen> box;
-    CHECK(box.try_update([](Seen& s) { s.cam[0] = 42; }));
+    CHECK(box.try_update([](Seen& s) { s.modes[3].cam[0] = 42; }));
     const Seen s = box.read([] {});
-    CHECK(s.cam[0] == 42);
+    CHECK(s.modes[3].cam[0] == 42);
     // A writer that arrives while the box is busy skips instead of waiting.
     bool innerRan = false;
     box.try_update([&](Seen&) { innerRan = box.try_update([](Seen&) {}); });

@@ -26,12 +26,22 @@ static int ini_key(const wchar_t* path, const wchar_t* key, int fallback, std::s
     return fallback;
 }
 
+// "3,4" -> bits 3 and 4. Anything that is not a digit from 1 to 7 separates.
+static unsigned ini_modes(const wchar_t* path, unsigned fallback) {
+    wchar_t text[64];
+    if (!GetPrivateProfileStringW(L"General", L"CursorModes", L"", text, 64, path)) return fallback;
+    unsigned mask = 0;
+    for (const wchar_t* p = text; *p; p++)
+        if (*p >= L'1' && *p <= L'7') mask |= 1u << (*p - L'0');
+    return mask ? mask : fallback;
+}
+
 Config load_config(const wchar_t* path) {
     Config c;
+    c.cursorModes = ini_modes(path, c.cursorModes);
     c.enabled = ini_int(path, L"General", L"Enabled", c.enabled) != 0;
     c.log = ini_int(path, L"General", L"Log", c.log) != 0;
     c.trace = ini_int(path, L"General", L"Trace", c.trace) != 0;
-    c.stayLockedAfterPlace = ini_int(path, L"General", L"StayLockedAfterPlace", c.stayLockedAfterPlace) != 0;
     c.flipLeftRight = ini_int(path, L"General", L"FlipLeftRight", c.flipLeftRight) != 0;
     c.snapOnLock = ini_int(path, L"General", L"SnapOnLock", c.snapOnLock) != 0;
     c.stepCells = clamp(ini_int(path, L"General", L"StepCells", c.stepCells), 1, 64);
