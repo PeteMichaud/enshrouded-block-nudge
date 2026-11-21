@@ -38,18 +38,30 @@ if(WIN32)
         target_compile_options(minhook PRIVATE -w)
     endif()
 
-    add_library(dinput8 SHARED
-        src/proxy.cpp src/hook.cpp src/input.cpp src/config.cpp src/log.cpp src/dinput8.def)
-    set_target_properties(dinput8 PROPERTIES PREFIX "" OUTPUT_NAME dinput8)
-    target_link_libraries(dinput8 PRIVATE blocknudge_core minhook)
-    target_compile_definitions(dinput8 PRIVATE
-        WIN32_LEAN_AND_MEAN NOMINMAX UNICODE _UNICODE
-        BLOCKNUDGE_VERSION="${PROJECT_VERSION}")
-    if(MINGW)
-        # Printf from MinGW itself, so formats behave the same whichever C runtime is the default.
-        target_compile_definitions(dinput8 PRIVATE __USE_MINGW_ANSI_STDIO=1)
-        target_link_options(dinput8 PRIVATE -static -Wl,--no-insert-timestamp
-            $<$<NOT:$<CONFIG:Debug>>:-s>)
+    # The same mod under two DLL names the game loads from its folder. POWRPROF.dll is the
+    # default: dinput8.dll is wanted by other mods (Building Tools, XHL, Creative Mode).
+    # POWRPROF.dll's forwarders need the MSVC linker (src/powrprof_exports.cpp).
+    function(blocknudge_proxy target output exports)
+        add_library(${target} SHARED
+            src/proxy.cpp src/hook.cpp src/input.cpp src/config.cpp src/log.cpp ${exports})
+        set_target_properties(${target} PROPERTIES PREFIX "" OUTPUT_NAME ${output})
+        target_link_libraries(${target} PRIVATE blocknudge_core minhook)
+        target_compile_definitions(${target} PRIVATE
+            WIN32_LEAN_AND_MEAN NOMINMAX UNICODE _UNICODE
+            BLOCKNUDGE_VERSION="${PROJECT_VERSION}")
+        if(MINGW)
+            # Printf from MinGW itself, so formats behave the same whichever C runtime is the default.
+            target_compile_definitions(${target} PRIVATE __USE_MINGW_ANSI_STDIO=1)
+            target_link_options(${target} PRIVATE -static -Wl,--no-insert-timestamp
+                $<$<NOT:$<CONFIG:Debug>>:-s>)
+        endif()
+    endfunction()
+    blocknudge_proxy(dinput8 dinput8 src/dinput8.def)
+    if(MSVC)
+        blocknudge_proxy(powrprof POWRPROF src/powrprof_exports.cpp)
+        set(ship powrprof)
+    else()
+        set(ship dinput8)
     endif()
 
     # Release zip: the zip root is the game folder.
@@ -58,14 +70,14 @@ if(WIN32)
     add_custom_target(package_zip
         COMMAND ${CMAKE_COMMAND} -E rm -rf ${stage} ${zip}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${stage}
-        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:dinput8>
+        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${ship}>
             ${CMAKE_SOURCE_DIR}/BlockNudge.ini ${CMAKE_SOURCE_DIR}/README.md
             ${CMAKE_SOURCE_DIR}/LICENSE ${CMAKE_SOURCE_DIR}/THIRD-PARTY-NOTICES.md ${stage}
         COMMAND ${CMAKE_COMMAND} -E chdir ${stage} ${CMAKE_COMMAND} -E tar cf ${zip} --format=zip
-            dinput8.dll BlockNudge.ini README.md LICENSE THIRD-PARTY-NOTICES.md
+            $<TARGET_FILE_NAME:${ship}> BlockNudge.ini README.md LICENSE THIRD-PARTY-NOTICES.md
         # dist/ is committed: install.cmd copies the DLL from there on the test machine.
-        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:dinput8> ${CMAKE_SOURCE_DIR}/dist/dinput8.dll
-        DEPENDS dinput8
+        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${ship}> ${CMAKE_SOURCE_DIR}/dist/
+        DEPENDS ${ship}
         COMMENT "Packaging ${zip}")
 endif()
 

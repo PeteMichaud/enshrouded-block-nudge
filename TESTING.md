@@ -14,19 +14,20 @@ install.cmd -ResetIni
 Then set `Trace=1` in the game folder's `BlockNudge.ini`, so the log records what the game's
 cursor is doing each second.
 
-`install.cmd` finds Enshrouded through Steam and copies `dist\dinput8.dll` next to
-`enshrouded.exe`, plus `BlockNudge.ini` if the game folder has none. It prints the game
+`install.cmd` finds Enshrouded through Steam and copies `dist\POWRPROF.dll` next to
+`enshrouded.exe`, plus `BlockNudge.ini` if the game folder has none. It removes an older
+BlockNudge `dinput8.dll` after the copy, so that name is free for other mods. It prints the game
 folder and where the log will be. Options:
 
 | Option | What it does |
 |---|---|
 | `-GameDir "path"` | Use this folder instead of looking through Steam |
 | `-ResetIni` | Replace the game folder's `BlockNudge.ini` with the default |
-| `-Force` | Replace a `dinput8.dll` that belongs to another mod |
+| `-Force` | Replace a `POWRPROF.dll` that belongs to another mod |
 | `-Uninstall` | Remove the DLL and the ini; the game is vanilla again |
 
 It refuses to run while the game is open, and it will not overwrite another mod's
-`dinput8.dll` unless told to.
+`POWRPROF.dll` unless told to, or remove another mod's `dinput8.dll` at all.
 
 ## 2. Run the session
 

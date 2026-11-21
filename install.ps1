@@ -3,20 +3,23 @@
 Copies BlockNudge from this checkout into the Enshrouded game folder.
 
 .DESCRIPTION
-Finds the Steam install of Enshrouded, then copies dist\dinput8.dll and, if the game folder
+Finds the Steam install of Enshrouded, then copies dist\POWRPROF.dll and, if the game folder
 has none yet, BlockNudge.ini next to enshrouded.exe. Run it through install.cmd.
+
+Older BlockNudge versions installed as dinput8.dll. That copy is removed, which frees the name for
+mods that need it (Building Tools); a dinput8.dll that belongs to another mod is left alone.
 
 .PARAMETER GameDir
 The folder that holds enshrouded.exe. Only needed if it is not found through Steam.
 
 .PARAMETER Uninstall
-Removes BlockNudge's dinput8.dll and BlockNudge.ini from the game folder. Logs are kept.
+Removes BlockNudge's DLLs (POWRPROF.dll, or an old dinput8.dll) and BlockNudge.ini. Logs are kept.
 
 .PARAMETER ResetIni
 Overwrites the game folder's BlockNudge.ini with the default one from this checkout.
 
 .PARAMETER Force
-Replaces a dinput8.dll in the game folder even if it belongs to another mod.
+Replaces a POWRPROF.dll in the game folder even if it belongs to another mod.
 #>
 [CmdletBinding()]
 param(
@@ -83,24 +86,34 @@ if (Get-Process -Name 'enshrouded' -ErrorAction SilentlyContinue) {
     throw 'Enshrouded is running. Close the game and run this again.'
 }
 
-$targetDll = Join-Path $GameDir 'dinput8.dll'
+$targetDll = Join-Path $GameDir 'POWRPROF.dll'
+$legacyDll = Join-Path $GameDir 'dinput8.dll'
 $targetIni = Join-Path $GameDir 'BlockNudge.ini'
 $dllExists = Test-Path -LiteralPath $targetDll
+$legacyIsOurs = (Test-Path -LiteralPath $legacyDll) -and (Test-IsBlockNudge $legacyDll)
 
 if ($dllExists -and -not $Force -and -not (Test-IsBlockNudge $targetDll)) {
     throw @"
 $targetDll belongs to another mod, so it was left alone.
-Either load BlockNudge through that mod's loader (copy dist\dinput8.dll there under another
+Either load BlockNudge through that mod's loader (copy dist\POWRPROF.dll there under another
 name, such as BlockNudge.dll), or run again with -Force to replace the other mod's DLL.
 "@
 }
 
+function Remove-LegacyDll {
+    if ($legacyIsOurs) {
+        Remove-Item -LiteralPath $legacyDll
+        Write-Host 'Removed the old BlockNudge dinput8.dll (dinput8.dll is free for other mods now)'
+    }
+}
+
 if ($Uninstall) {
+    Remove-LegacyDll
     if ($dllExists) {
         Remove-Item -LiteralPath $targetDll
-        Write-Host 'Removed dinput8.dll'
-    } else {
-        Write-Host 'dinput8.dll was not installed'
+        Write-Host 'Removed POWRPROF.dll'
+    } elseif (-not $legacyIsOurs) {
+        Write-Host 'BlockNudge was not installed'
     }
     if (Test-Path -LiteralPath $targetIni) {
         Remove-Item -LiteralPath $targetIni
@@ -110,7 +123,7 @@ if ($Uninstall) {
     return
 }
 
-$sourceDll = Join-Path $Repo 'dist\dinput8.dll'
+$sourceDll = Join-Path $Repo 'dist\POWRPROF.dll'
 $sourceIni = Join-Path $Repo 'BlockNudge.ini'
 if (-not (Test-Path -LiteralPath $sourceDll)) {
     throw "$sourceDll is missing. Pull the latest commit, or build it (see README.md)."
@@ -118,7 +131,8 @@ if (-not (Test-Path -LiteralPath $sourceDll)) {
 
 Copy-Item -LiteralPath $sourceDll -Destination $targetDll -Force
 $hash = (Get-FileHash -LiteralPath $targetDll -Algorithm SHA256).Hash.Substring(0, 12)
-Write-Host "Copied dinput8.dll (sha256 $hash...)"
+Write-Host "Copied POWRPROF.dll (sha256 $hash...)"
+Remove-LegacyDll
 
 if ($ResetIni -or -not (Test-Path -LiteralPath $targetIni)) {
     Copy-Item -LiteralPath $sourceIni -Destination $targetIni -Force

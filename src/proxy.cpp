@@ -1,6 +1,7 @@
-// BlockNudge: dinput8.dll proxy. The game loads this instead of the system dinput8.dll;
-// DirectInput8Create is forwarded to the real one. Also works under any other name when
-// another loader loads it, since everything starts from DllMain.
+// BlockNudge's entry point. Installed as POWRPROF.dll (exports forwarded in
+// powrprof_exports.cpp) or as dinput8.dll, where DirectInput8Create below is passed to the real
+// one. Also works under any other name when another loader loads it, since everything starts
+// from DllMain.
 
 #include <windows.h>
 

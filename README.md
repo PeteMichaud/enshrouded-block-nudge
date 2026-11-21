@@ -18,15 +18,19 @@ Tested on game version 1287369 (Steam build 26430625).
    [latest release](https://github.com/PeteMichaud/enshrouded-block-nudge/releases/latest).
 2. Open the game folder, the one that holds `enshrouded.exe`. In Steam: right-click
    Enshrouded > Manage > Browse local files.
-3. With the game closed, copy `dinput8.dll` and `BlockNudge.ini` from the zip into that
-   folder, next to `enshrouded.exe`.
+3. With the game closed, copy `POWRPROF.dll` and `BlockNudge.ini` from the zip into that
+   folder, next to `enshrouded.exe`. If an older BlockNudge left a `dinput8.dll` there,
+   delete it (or run `install.cmd` from a checkout, which does both).
 4. Start the game, then change the two game key bindings listed under [Keys](#keys).
 
 To uninstall, delete those two files. The game is vanilla again; nothing else is touched.
 
-If another mod already uses `dinput8.dll` there, rename BlockNudge's DLL (for example
-`BlockNudge.dll`) and load it with that mod's loader instead, such as an entry in the XHL
-Native Core's `dinput8-chain.ini`. The ini and the log stay next to `enshrouded.exe`.
+BlockNudge installs as `POWRPROF.dll`, a DLL the game loads from its own folder at start-up
+that no other mod uses, so it runs alongside mods that need `dinput8.dll` (Enshrouded
+Building Tools, XHL mods, Creative Mode) and EML's `dbghelp.dll`. Every function of the real
+`powrprof.dll` is passed through to the copy in `System32`. Older versions installed as
+`dinput8.dll`; that build still exists for mod loaders that chain DLLs (`dist/dinput8.dll`,
+renamed to e.g. `BlockNudge.dll`). The ini and the log stay next to `enshrouded.exe`.
 
 ## Keys
 
@@ -113,16 +117,17 @@ Windows x64 only. CMake 3.21 or later; MinHook is fetched at a pinned commit.
 cmake --preset tests && cmake --build --preset tests && ctest --preset tests
 
 # The DLL, cross-compiled with MinGW-w64 (macOS: brew install cmake ninja mingw-w64)
-cmake --preset mingw && cmake --build --preset mingw        # build/mingw/dinput8.dll
-cmake --build --preset package                              # the release zip, and refreshes dist/dinput8.dll
+cmake --preset mingw && cmake --build --preset mingw        # build/mingw/dinput8.dll only
+cmake --build --preset package                              # a dinput8.dll zip, and refreshes dist/dinput8.dll
 
 # The DLL and tests with Visual Studio 2022 on Windows
-cmake --preset msvc && cmake --build --preset msvc          # build/msvc/Release/dinput8.dll
-cmake --build --preset package-msvc                         # the release zip, and refreshes dist/dinput8.dll
+cmake --preset msvc && cmake --build --preset msvc          # build/msvc/Release/POWRPROF.dll and dinput8.dll
+cmake --build --preset package-msvc                         # the release zip, and refreshes dist/POWRPROF.dll
 ```
 
-`dist/dinput8.dll` is the committed build of the current source; rebuild it with one of the
-package presets before committing a code change. From a checkout on Windows, `install.cmd`
+`dist/POWRPROF.dll` (and `dist/dinput8.dll`) are the committed builds of the current source;
+rebuild them with the package presets before committing a code change. `POWRPROF.dll` needs
+MSVC: its pass-through exports (`src/powrprof_exports.cpp`) are linker directives MinGW lacks. From a checkout on Windows, `install.cmd`
 copies it and the ini into the game folder (it finds the game through Steam), and
 `install.cmd -Uninstall` removes them. See [TESTING.md](TESTING.md).
 

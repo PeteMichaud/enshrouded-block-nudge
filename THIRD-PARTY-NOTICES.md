@@ -1,6 +1,6 @@
 # Third-party notices
 
-BlockNudge's `dinput8.dll` contains the following third-party software.
+BlockNudge's DLL (`POWRPROF.dll` or `dinput8.dll`) contains the following third-party software.
 
 ## MinHook
 
